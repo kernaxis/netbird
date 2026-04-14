@@ -15,8 +15,8 @@ import (
 	sshdetection "github.com/netbirdio/netbird/client/ssh/detection"
 	nbstatus "github.com/netbirdio/netbird/client/status"
 	"github.com/netbirdio/netbird/client/wasm/internal/http"
-	"github.com/netbirdio/netbird/client/wasm/internal/rdp"
 	"github.com/netbirdio/netbird/client/wasm/internal/ssh"
+	"github.com/netbirdio/netbird/client/wasm/internal/vnc"
 	"github.com/netbirdio/netbird/util"
 )
 
@@ -317,8 +317,13 @@ func createProxyRequestMethod(client *netbird.Client) js.Func {
 	})
 }
 
-// createRDPProxyMethod creates the RDP proxy method
-func createRDPProxyMethod(client *netbird.Client) js.Func {
+// createVNCProxyMethod creates the VNC proxy method for raw TCP-over-WebSocket bridging.
+// JS signature: createVNCProxy(hostname, port, mode?, username?, jwt?, sessionID?)
+// mode: "attach" (default) or "session"
+// username: required when mode is "session"
+// jwt: authentication token (from OIDC session)
+// sessionID: Windows session ID (0 = console/auto)
+func createVNCProxyMethod(client *netbird.Client) js.Func {
 	return js.FuncOf(func(_ js.Value, args []js.Value) any {
 		if len(args) < 2 {
 			return js.ValueOf("error: hostname and port required")
@@ -335,8 +340,25 @@ func createRDPProxyMethod(client *netbird.Client) js.Func {
 			})
 		}
 
-		proxy := rdp.NewRDCleanPathProxy(client)
-		return proxy.CreateProxy(args[0].String(), args[1].String())
+		mode := "attach"
+		username := ""
+		jwtToken := ""
+		var sessionID uint32
+		if len(args) > 2 && args[2].Type() == js.TypeString {
+			mode = args[2].String()
+		}
+		if len(args) > 3 && args[3].Type() == js.TypeString {
+			username = args[3].String()
+		}
+		if len(args) > 4 && args[4].Type() == js.TypeString {
+			jwtToken = args[4].String()
+		}
+		if len(args) > 5 && args[5].Type() == js.TypeNumber {
+			sessionID = uint32(args[5].Int())
+		}
+
+		proxy := vnc.NewVNCProxy(client)
+		return proxy.CreateProxy(args[0].String(), args[1].String(), mode, username, jwtToken, sessionID)
 	})
 }
 
@@ -515,7 +537,7 @@ func createClientObject(client *netbird.Client) js.Value {
 	obj["detectSSHServerType"] = createDetectSSHServerMethod(client)
 	obj["createSSHConnection"] = createSSHMethod(client)
 	obj["proxyRequest"] = createProxyRequestMethod(client)
-	obj["createRDPProxy"] = createRDPProxyMethod(client)
+	obj["createVNCProxy"] = createVNCProxyMethod(client)
 	obj["status"] = createStatusMethod(client)
 	obj["statusSummary"] = createStatusSummaryMethod(client)
 	obj["statusDetail"] = createStatusDetailMethod(client)

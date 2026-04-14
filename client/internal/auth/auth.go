@@ -315,6 +315,7 @@ func (a *Auth) setSystemInfoFlags(info *system.Info) {
 		a.config.RosenpassEnabled,
 		a.config.RosenpassPermissive,
 		a.config.ServerSSHAllowed,
+		a.config.ServerVNCAllowed,
 		a.config.DisableClientRoutes,
 		a.config.DisableServerRoutes,
 		a.config.DisableDNS,
@@ -327,6 +328,7 @@ func (a *Auth) setSystemInfoFlags(info *system.Info) {
 		a.config.EnableSSHLocalPortForwarding,
 		a.config.EnableSSHRemotePortForwarding,
 		a.config.DisableSSHAuth,
+		a.config.DisableVNCAuth,
 	)
 }
 

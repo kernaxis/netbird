@@ -742,6 +742,7 @@ const (
 	PolicyRuleProtocolAll        PolicyRuleProtocol = "all"
 	PolicyRuleProtocolIcmp       PolicyRuleProtocol = "icmp"
 	PolicyRuleProtocolNetbirdSsh PolicyRuleProtocol = "netbird-ssh"
+	PolicyRuleProtocolNetbirdVnc PolicyRuleProtocol = "netbird-vnc"
 	PolicyRuleProtocolTcp        PolicyRuleProtocol = "tcp"
 	PolicyRuleProtocolUdp        PolicyRuleProtocol = "udp"
 )
@@ -754,6 +755,8 @@ func (e PolicyRuleProtocol) Valid() bool {
 	case PolicyRuleProtocolIcmp:
 		return true
 	case PolicyRuleProtocolNetbirdSsh:
+		return true
+	case PolicyRuleProtocolNetbirdVnc:
 		return true
 	case PolicyRuleProtocolTcp:
 		return true
@@ -787,6 +790,7 @@ const (
 	PolicyRuleMinimumProtocolAll        PolicyRuleMinimumProtocol = "all"
 	PolicyRuleMinimumProtocolIcmp       PolicyRuleMinimumProtocol = "icmp"
 	PolicyRuleMinimumProtocolNetbirdSsh PolicyRuleMinimumProtocol = "netbird-ssh"
+	PolicyRuleMinimumProtocolNetbirdVnc PolicyRuleMinimumProtocol = "netbird-vnc"
 	PolicyRuleMinimumProtocolTcp        PolicyRuleMinimumProtocol = "tcp"
 	PolicyRuleMinimumProtocolUdp        PolicyRuleMinimumProtocol = "udp"
 )
@@ -799,6 +803,8 @@ func (e PolicyRuleMinimumProtocol) Valid() bool {
 	case PolicyRuleMinimumProtocolIcmp:
 		return true
 	case PolicyRuleMinimumProtocolNetbirdSsh:
+		return true
+	case PolicyRuleMinimumProtocolNetbirdVnc:
 		return true
 	case PolicyRuleMinimumProtocolTcp:
 		return true
@@ -832,6 +838,7 @@ const (
 	PolicyRuleUpdateProtocolAll        PolicyRuleUpdateProtocol = "all"
 	PolicyRuleUpdateProtocolIcmp       PolicyRuleUpdateProtocol = "icmp"
 	PolicyRuleUpdateProtocolNetbirdSsh PolicyRuleUpdateProtocol = "netbird-ssh"
+	PolicyRuleUpdateProtocolNetbirdVnc PolicyRuleUpdateProtocol = "netbird-vnc"
 	PolicyRuleUpdateProtocolTcp        PolicyRuleUpdateProtocol = "tcp"
 	PolicyRuleUpdateProtocolUdp        PolicyRuleUpdateProtocol = "udp"
 )
@@ -844,6 +851,8 @@ func (e PolicyRuleUpdateProtocol) Valid() bool {
 	case PolicyRuleUpdateProtocolIcmp:
 		return true
 	case PolicyRuleUpdateProtocolNetbirdSsh:
+		return true
+	case PolicyRuleUpdateProtocolNetbirdVnc:
 		return true
 	case PolicyRuleUpdateProtocolTcp:
 		return true
@@ -3260,6 +3269,9 @@ type PeerLocalFlags struct {
 	// DisableServerRoutes Indicates whether server routes are disabled on this peer or not
 	DisableServerRoutes *bool `json:"disable_server_routes,omitempty"`
 
+	// DisableVncAuth Indicates whether VNC JWT authentication is disabled on this peer
+	DisableVncAuth *bool `json:"disable_vnc_auth,omitempty"`
+
 	// LazyConnectionEnabled Indicates whether lazy connection is enabled on this peer
 	LazyConnectionEnabled *bool `json:"lazy_connection_enabled,omitempty"`
 
@@ -3271,6 +3283,9 @@ type PeerLocalFlags struct {
 
 	// ServerSshAllowed Indicates whether SSH access this peer is allowed or not
 	ServerSshAllowed *bool `json:"server_ssh_allowed,omitempty"`
+
+	// ServerVncAllowed Indicates whether the embedded VNC server is enabled on this peer
+	ServerVncAllowed *bool `json:"server_vnc_allowed,omitempty"`
 }
 
 // PeerMinimum defines model for PeerMinimum.

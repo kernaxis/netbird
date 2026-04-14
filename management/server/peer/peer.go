@@ -108,6 +108,7 @@ type Flags struct {
 	RosenpassEnabled    bool
 	RosenpassPermissive bool
 	ServerSSHAllowed    bool
+	ServerVNCAllowed    bool
 
 	DisableClientRoutes bool
 	DisableServerRoutes bool
@@ -117,6 +118,8 @@ type Flags struct {
 	BlockInbound        bool
 
 	LazyConnectionEnabled bool
+
+	DisableVNCAuth bool
 }
 
 // PeerSystemMeta is a metadata of a Peer machine system
@@ -363,11 +366,13 @@ func (f Flags) isEqual(other Flags) bool {
 	return f.RosenpassEnabled == other.RosenpassEnabled &&
 		f.RosenpassPermissive == other.RosenpassPermissive &&
 		f.ServerSSHAllowed == other.ServerSSHAllowed &&
+		f.ServerVNCAllowed == other.ServerVNCAllowed &&
 		f.DisableClientRoutes == other.DisableClientRoutes &&
 		f.DisableServerRoutes == other.DisableServerRoutes &&
 		f.DisableDNS == other.DisableDNS &&
 		f.DisableFirewall == other.DisableFirewall &&
 		f.BlockLANAccess == other.BlockLANAccess &&
 		f.BlockInbound == other.BlockInbound &&
-		f.LazyConnectionEnabled == other.LazyConnectionEnabled
+		f.LazyConnectionEnabled == other.LazyConnectionEnabled &&
+		f.DisableVNCAuth == other.DisableVNCAuth
 }

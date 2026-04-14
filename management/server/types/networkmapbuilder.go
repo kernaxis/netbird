@@ -1019,7 +1019,7 @@ func (b *NetworkMapBuilder) buildAllowedUserIDs(account *Account) map[string]str
 }
 
 func firewallRuleProtocol(protocol PolicyRuleProtocolType) string {
-	if protocol == PolicyRuleProtocolNetbirdSSH {
+	if protocol == PolicyRuleProtocolNetbirdSSH || protocol == PolicyRuleProtocolNetbirdVNC {
 		return string(PolicyRuleProtocolTCP)
 	}
 	return string(protocol)

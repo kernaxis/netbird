@@ -63,6 +63,7 @@ type Info struct {
 	RosenpassEnabled    bool
 	RosenpassPermissive bool
 	ServerSSHAllowed    bool
+	ServerVNCAllowed    bool
 
 	DisableClientRoutes bool
 	DisableServerRoutes bool
@@ -78,20 +79,26 @@ type Info struct {
 	EnableSSHLocalPortForwarding  bool
 	EnableSSHRemotePortForwarding bool
 	DisableSSHAuth                bool
+	DisableVNCAuth                bool
 }
 
 func (i *Info) SetFlags(
 	rosenpassEnabled, rosenpassPermissive bool,
 	serverSSHAllowed *bool,
+	serverVNCAllowed *bool,
 	disableClientRoutes, disableServerRoutes,
 	disableDNS, disableFirewall, blockLANAccess, blockInbound, lazyConnectionEnabled bool,
 	enableSSHRoot, enableSSHSFTP, enableSSHLocalPortForwarding, enableSSHRemotePortForwarding *bool,
 	disableSSHAuth *bool,
+	disableVNCAuth *bool,
 ) {
 	i.RosenpassEnabled = rosenpassEnabled
 	i.RosenpassPermissive = rosenpassPermissive
 	if serverSSHAllowed != nil {
 		i.ServerSSHAllowed = *serverSSHAllowed
+	}
+	if serverVNCAllowed != nil {
+		i.ServerVNCAllowed = *serverVNCAllowed
 	}
 
 	i.DisableClientRoutes = disableClientRoutes
@@ -117,6 +124,9 @@ func (i *Info) SetFlags(
 	}
 	if disableSSHAuth != nil {
 		i.DisableSSHAuth = *disableSSHAuth
+	}
+	if disableVNCAuth != nil {
+		i.DisableVNCAuth = *disableVNCAuth
 	}
 }
 

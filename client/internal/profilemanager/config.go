@@ -64,11 +64,13 @@ type ConfigInput struct {
 	StateFilePath                 string
 	PreSharedKey                  *string
 	ServerSSHAllowed              *bool
+	ServerVNCAllowed              *bool
 	EnableSSHRoot                 *bool
 	EnableSSHSFTP                 *bool
 	EnableSSHLocalPortForwarding  *bool
 	EnableSSHRemotePortForwarding *bool
 	DisableSSHAuth                *bool
+	DisableVNCAuth                *bool
 	SSHJWTCacheTTL                *int
 	NATExternalIPs                []string
 	CustomDNSAddress              []byte
@@ -114,11 +116,13 @@ type Config struct {
 	RosenpassEnabled              bool
 	RosenpassPermissive           bool
 	ServerSSHAllowed              *bool
+	ServerVNCAllowed              *bool
 	EnableSSHRoot                 *bool
 	EnableSSHSFTP                 *bool
 	EnableSSHLocalPortForwarding  *bool
 	EnableSSHRemotePortForwarding *bool
 	DisableSSHAuth                *bool
+	DisableVNCAuth                *bool
 	SSHJWTCacheTTL                *int
 
 	DisableClientRoutes bool
@@ -415,6 +419,21 @@ func (config *Config) apply(input ConfigInput) (updated bool, err error) {
 		updated = true
 	}
 
+	if input.ServerVNCAllowed != nil {
+		if config.ServerVNCAllowed == nil || *input.ServerVNCAllowed != *config.ServerVNCAllowed {
+			if *input.ServerVNCAllowed {
+				log.Infof("enabling VNC server")
+			} else {
+				log.Infof("disabling VNC server")
+			}
+			config.ServerVNCAllowed = input.ServerVNCAllowed
+			updated = true
+		}
+	} else if config.ServerVNCAllowed == nil {
+		config.ServerVNCAllowed = util.True()
+		updated = true
+	}
+
 	if input.EnableSSHRoot != nil && input.EnableSSHRoot != config.EnableSSHRoot {
 		if *input.EnableSSHRoot {
 			log.Infof("enabling SSH root login")
@@ -462,6 +481,16 @@ func (config *Config) apply(input ConfigInput) (updated bool, err error) {
 			log.Infof("enabling SSH authentication")
 		}
 		config.DisableSSHAuth = input.DisableSSHAuth
+		updated = true
+	}
+
+	if input.DisableVNCAuth != nil && input.DisableVNCAuth != config.DisableVNCAuth {
+		if *input.DisableVNCAuth {
+			log.Infof("disabling VNC authentication")
+		} else {
+			log.Infof("enabling VNC authentication")
+		}
+		config.DisableVNCAuth = input.DisableVNCAuth
 		updated = true
 	}
 

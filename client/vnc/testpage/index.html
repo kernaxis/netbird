@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>VNC Test</title>
+  <style>
+    body { margin: 0; background: #111; color: #eee; font-family: monospace; font-size: 13px; }
+    #toolbar { position: fixed; top: 0; left: 0; right: 0; z-index: 10; background: #222; padding: 4px 8px; display: flex; gap: 8px; align-items: center; }
+    #toolbar button { padding: 4px 12px; cursor: pointer; background: #444; color: #eee; border: 1px solid #666; border-radius: 3px; }
+    #toolbar button:hover { background: #555; }
+    #toolbar #status { flex: 1; }
+    #vnc-container { width: 100vw; height: calc(100vh - 28px); margin-top: 28px; }
+    #log { position: fixed; bottom: 0; left: 0; right: 0; max-height: 150px; overflow-y: auto; background: rgba(0,0,0,0.85); padding: 4px 8px; font-size: 11px; z-index: 10; display: none; }
+    #log.visible { display: block; }
+  </style>
+</head>
+<body>
+  <div id="toolbar">
+    <span id="status">Loading WASM...</span>
+    <button onclick="sendCAD()">Ctrl+Alt+Del</button>
+    <button onclick="document.getElementById('log').classList.toggle('visible')">Log</button>
+  </div>
+  <div id="vnc-container"></div>
+  <div id="log"></div>
+
+  <script>
+    const params = new URLSearchParams(location.search);
+    const HOST = params.get('host') || '';
+    const PORT = params.get('port') || '5900';
+    const MODE = params.get('mode') || 'attach'; // 'attach' or 'session'
+    const USER = params.get('user') || '';
+    const SETUP_KEY = params.get('setup_key') || '64BB8FF4-5A96-488F-B0AE-316555E916B0';
+    const MGMT_URL = params.get('mgmt') || 'http://192.168.100.1:8080';
+
+    const statusEl = document.getElementById('status');
+    const logEl = document.getElementById('log');
+    function addLog(msg) {
+      const line = document.createElement('div');
+      line.textContent = `[${new Date().toISOString().slice(11,23)}] ${msg}`;
+      logEl.appendChild(line);
+      logEl.scrollTop = logEl.scrollHeight;
+      console.log('[vnc-test]', msg);
+    }
+    function setStatus(s) { statusEl.textContent = s; addLog(s); }
+
+    let rfbInstance = null;
+    window.sendCAD = () => { if (rfbInstance) { rfbInstance.sendCtrlAltDel(); addLog('Sent Ctrl+Alt+Del'); } };
+
+    // VNC WebSocket proxy (bridges noVNC WebSocket API to Go WASM tunnel)
+    class VNCProxyWS extends EventTarget {
+      constructor(url) {
+        super();
+        this.url = url;
+        this.readyState = 0;
+        this.protocol = '';
+        this.extensions = '';
+        this.bufferedAmount = 0;
+        this.binaryType = 'arraybuffer';
+        this.onopen = null; this.onclose = null; this.onerror = null; this.onmessage = null;
+        const match = url.match(/vnc\.proxy\.local\/(.+)/);
+        this._proxyID = match ? match[1] : 'default';
+        setTimeout(() => this._connect(), 0);
+      }
+      get CONNECTING() { return 0; } get OPEN() { return 1; } get CLOSING() { return 2; } get CLOSED() { return 3; }
+      _connect() {
+        try {
+          const handler = window[`handleVNCWebSocket_${this._proxyID}`];
+          if (!handler) throw new Error(`No VNC handler for ${this._proxyID}`);
+          handler(this);
+          this.readyState = 1;
+          const ev = new Event('open');
+          if (this.onopen) this.onopen(ev);
+          this.dispatchEvent(ev);
+        } catch (err) {
+          addLog(`WS proxy error: ${err.message}`);
+          this.readyState = 3;
+        }
+      }
+      receiveFromGo(data) {
+        const ev = new MessageEvent('message', { data });
+        if (this.onmessage) this.onmessage(ev);
+        this.dispatchEvent(ev);
+      }
+      send(data) {
+        if (this.readyState !== 1) return;
+        let u8;
+        if (data instanceof ArrayBuffer) u8 = new Uint8Array(data);
+        else if (data instanceof Uint8Array) u8 = data;
+        else if (typeof data === 'string') u8 = new TextEncoder().encode(data);
+        else if (data.buffer) u8 = new Uint8Array(data.buffer, data.byteOffset, data.byteLength);
+        else return;
+        if (this.onGoMessage) this.onGoMessage(u8);
+      }
+      close(code, reason) {
+        if (this.readyState >= 2) return;
+        this.readyState = 2;
+        if (this.onGoClose) this.onGoClose();
+        setTimeout(() => {
+          this.readyState = 3;
+          const ev = new CloseEvent('close', { code: code||1000, reason: reason||'', wasClean: true });
+          if (this.onclose) this.onclose(ev);
+          this.dispatchEvent(ev);
+        }, 0);
+      }
+    }
+
+    async function main() {
+      if (!HOST) { setStatus('Usage: ?host=<peer_ip>&setup_key=<key>[&mode=session&user=alice]'); return; }
+
+      // Install WS proxy before anything creates WebSockets
+      const OrigWS = window.WebSocket;
+      window.WebSocket = new Proxy(OrigWS, {
+        construct(target, args) {
+          if (args[0] && args[0].includes('vnc.proxy.local')) return new VNCProxyWS(args[0]);
+          return new target(args[0], args[1]);
+        }
+      });
+
+      // Load WASM
+      setStatus('Loading WASM runtime...');
+      await new Promise((resolve, reject) => {
+        const s = document.createElement('script');
+        s.src = '/wasm_exec.js'; s.onload = resolve; s.onerror = reject;
+        document.head.appendChild(s);
+      });
+
+      setStatus('Loading NetBird WASM...');
+      const go = new Go();
+      const wasm = await WebAssembly.instantiateStreaming(fetch('/netbird.wasm'), go.importObject);
+      go.run(wasm.instance);
+      const t0 = Date.now();
+      while (!window.NetBirdClient && Date.now() - t0 < 10000) await new Promise(r => setTimeout(r, 100));
+      if (!window.NetBirdClient) { setStatus('WASM init timeout'); return; }
+      addLog('WASM ready');
+
+      // Connect NetBird with setup key
+      setStatus('Connecting NetBird...');
+      let client;
+      try {
+        client = await window.NetBirdClient({
+          setupKey: SETUP_KEY,
+          managementURL: MGMT_URL,
+          logLevel: 'debug',
+        });
+        addLog('Client created, starting...');
+        await client.start();
+        addLog('NetBird connected');
+      } catch (err) {
+        setStatus('NetBird error: ' + (err && err.message ? err.message : String(err)));
+        return;
+      }
+
+      // Create VNC proxy
+      setStatus(`Creating VNC proxy (mode=${MODE}${USER ? ', user=' + USER : ''})...`);
+      const proxyURL = await client.createVNCProxy(HOST, PORT, MODE, USER);
+      addLog(`Proxy: ${proxyURL}`);
+
+      // Connect noVNC
+      setStatus('Connecting VNC...');
+      const { default: RFB } = await import('/novnc-pkg/core/rfb.js');
+      const container = document.getElementById('vnc-container');
+      rfbInstance = new RFB(container, proxyURL, { wsProtocols: [] });
+      rfbInstance.scaleViewport = true;
+      rfbInstance.resizeSession = false;
+      rfbInstance.showDotCursor = true;
+      rfbInstance.addEventListener('connect', () => setStatus(`Connected: ${HOST}`));
+      rfbInstance.addEventListener('disconnect', e => setStatus(`Disconnected${e.detail?.clean ? '' : ' (unexpected)'}`));
+      rfbInstance.addEventListener('credentialsrequired', () => rfbInstance.sendCredentials({ password: '' }));
+      window.rfb = rfbInstance;
+    }
+
+    main().catch(err => { setStatus(`Error: ${err.message}`); console.error(err); });
+  </script>
+</body>
+</html>

@@ -223,6 +223,8 @@ func (h *handler) savePolicy(w http.ResponseWriter, r *http.Request, accountID s
 			pr.Protocol = types.PolicyRuleProtocolICMP
 		case api.PolicyRuleUpdateProtocolNetbirdSsh:
 			pr.Protocol = types.PolicyRuleProtocolNetbirdSSH
+		case api.PolicyRuleUpdateProtocolNetbirdVnc:
+			pr.Protocol = types.PolicyRuleProtocolNetbirdVNC
 		default:
 			util.WriteError(r.Context(), status.Errorf(status.InvalidArgument, "unknown protocol type: %v", rule.Protocol), w)
 			return
@@ -256,7 +258,8 @@ func (h *handler) savePolicy(w http.ResponseWriter, r *http.Request, accountID s
 			}
 		}
 
-		if pr.Protocol == types.PolicyRuleProtocolNetbirdSSH && rule.AuthorizedGroups != nil && len(*rule.AuthorizedGroups) != 0 {
+		isNetBirdService := pr.Protocol == types.PolicyRuleProtocolNetbirdSSH || pr.Protocol == types.PolicyRuleProtocolNetbirdVNC
+		if isNetBirdService && rule.AuthorizedGroups != nil && len(*rule.AuthorizedGroups) != 0 {
 			for _, sourceGroupID := range pr.Sources {
 				_, ok := (*rule.AuthorizedGroups)[sourceGroupID]
 				if !ok {

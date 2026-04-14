@@ -117,11 +117,13 @@ type EngineConfig struct {
 	RosenpassPermissive bool
 
 	ServerSSHAllowed              bool
+	ServerVNCAllowed              bool
 	EnableSSHRoot                 *bool
 	EnableSSHSFTP                 *bool
 	EnableSSHLocalPortForwarding  *bool
 	EnableSSHRemotePortForwarding *bool
 	DisableSSHAuth                *bool
+	DisableVNCAuth                *bool
 
 	DNSRouteInterval time.Duration
 
@@ -197,6 +199,7 @@ type Engine struct {
 	networkMonitor *networkmonitor.NetworkMonitor
 
 	sshServer sshServer
+	vncSrv    vncServer
 
 	statusRecorder *peer.Status
 
@@ -308,6 +311,10 @@ func (e *Engine) Stop() error {
 
 	if err := e.stopSSHServer(); err != nil {
 		log.Warnf("failed to stop SSH server: %v", err)
+	}
+
+	if err := e.stopVNCServer(); err != nil {
+		log.Warnf("failed to stop VNC server: %v", err)
 	}
 
 	e.cleanupSSHConfig()
@@ -997,6 +1004,7 @@ func (e *Engine) updateChecksIfNew(checks []*mgmProto.Checks) error {
 		e.config.RosenpassEnabled,
 		e.config.RosenpassPermissive,
 		&e.config.ServerSSHAllowed,
+		&e.config.ServerVNCAllowed,
 		e.config.DisableClientRoutes,
 		e.config.DisableServerRoutes,
 		e.config.DisableDNS,
@@ -1009,6 +1017,7 @@ func (e *Engine) updateChecksIfNew(checks []*mgmProto.Checks) error {
 		e.config.EnableSSHLocalPortForwarding,
 		e.config.EnableSSHRemotePortForwarding,
 		e.config.DisableSSHAuth,
+		e.config.DisableVNCAuth,
 	)
 
 	if err := e.mgmClient.SyncMeta(info); err != nil {
@@ -1034,6 +1043,10 @@ func (e *Engine) updateConfig(conf *mgmProto.PeerConfig) error {
 		if err := e.updateSSH(conf.GetSshConfig()); err != nil {
 			log.Warnf("failed handling SSH server setup: %v", err)
 		}
+	}
+
+	if err := e.updateVNC(conf.GetSshConfig()); err != nil {
+		log.Warnf("failed handling VNC server setup: %v", err)
 	}
 
 	state := e.statusRecorder.GetLocalPeerState()
@@ -1137,6 +1150,7 @@ func (e *Engine) receiveManagementEvents() {
 			e.config.RosenpassEnabled,
 			e.config.RosenpassPermissive,
 			&e.config.ServerSSHAllowed,
+			&e.config.ServerVNCAllowed,
 			e.config.DisableClientRoutes,
 			e.config.DisableServerRoutes,
 			e.config.DisableDNS,
@@ -1149,6 +1163,7 @@ func (e *Engine) receiveManagementEvents() {
 			e.config.EnableSSHLocalPortForwarding,
 			e.config.EnableSSHRemotePortForwarding,
 			e.config.DisableSSHAuth,
+			e.config.DisableVNCAuth,
 		)
 
 		err = e.mgmClient.Sync(e.ctx, info, e.handleSync)
@@ -1323,6 +1338,11 @@ func (e *Engine) updateNetworkMap(networkMap *mgmProto.NetworkMap) error {
 		}
 
 		e.updateSSHServerAuth(networkMap.GetSshAuth())
+
+		// VNC auth: use dedicated VNCAuth if present.
+		if vncAuth := networkMap.GetVncAuth(); vncAuth != nil {
+			e.updateVNCServerAuth(vncAuth)
+		}
 	}
 
 	// must set the exclude list after the peers are added. Without it the manager can not figure out the peers parameters from the store
@@ -1732,6 +1752,7 @@ func (e *Engine) readInitialSettings() ([]*route.Route, *nbdns.Config, bool, err
 		e.config.RosenpassEnabled,
 		e.config.RosenpassPermissive,
 		&e.config.ServerSSHAllowed,
+		&e.config.ServerVNCAllowed,
 		e.config.DisableClientRoutes,
 		e.config.DisableServerRoutes,
 		e.config.DisableDNS,
@@ -1744,6 +1765,7 @@ func (e *Engine) readInitialSettings() ([]*route.Route, *nbdns.Config, bool, err
 		e.config.EnableSSHLocalPortForwarding,
 		e.config.EnableSSHRemotePortForwarding,
 		e.config.DisableSSHAuth,
+		e.config.DisableVNCAuth,
 	)
 
 	netMap, err := e.mgmClient.GetNetworkMap(info)

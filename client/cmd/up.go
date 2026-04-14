@@ -356,6 +356,9 @@ func setupSetConfigReq(customDNSAddressConverted []byte, cmd *cobra.Command, pro
 	if cmd.Flag(serverSSHAllowedFlag).Changed {
 		req.ServerSSHAllowed = &serverSSHAllowed
 	}
+	if cmd.Flag(serverVNCAllowedFlag).Changed {
+		req.ServerVNCAllowed = &serverVNCAllowed
+	}
 	if cmd.Flag(enableSSHRootFlag).Changed {
 		req.EnableSSHRoot = &enableSSHRoot
 	}
@@ -371,9 +374,12 @@ func setupSetConfigReq(customDNSAddressConverted []byte, cmd *cobra.Command, pro
 	if cmd.Flag(disableSSHAuthFlag).Changed {
 		req.DisableSSHAuth = &disableSSHAuth
 	}
-	if cmd.Flag(sshJWTCacheTTLFlag).Changed {
-		sshJWTCacheTTL32 := int32(sshJWTCacheTTL)
-		req.SshJWTCacheTTL = &sshJWTCacheTTL32
+	if cmd.Flag(disableVNCAuthFlag).Changed {
+		req.DisableVNCAuth = &disableVNCAuth
+	}
+	if cmd.Flag(jwtCacheTTLFlag).Changed || cmd.Flag(sshJWTCacheTTLFlag).Changed {
+		jwtCacheTTL32 := int32(jwtCacheTTL)
+		req.SshJWTCacheTTL = &jwtCacheTTL32
 	}
 	if cmd.Flag(interfaceNameFlag).Changed {
 		if err := parseInterfaceName(interfaceName); err != nil {
@@ -458,6 +464,9 @@ func setupConfig(customDNSAddressConverted []byte, cmd *cobra.Command, configFil
 	if cmd.Flag(serverSSHAllowedFlag).Changed {
 		ic.ServerSSHAllowed = &serverSSHAllowed
 	}
+	if cmd.Flag(serverVNCAllowedFlag).Changed {
+		ic.ServerVNCAllowed = &serverVNCAllowed
+	}
 
 	if cmd.Flag(enableSSHRootFlag).Changed {
 		ic.EnableSSHRoot = &enableSSHRoot
@@ -479,8 +488,12 @@ func setupConfig(customDNSAddressConverted []byte, cmd *cobra.Command, configFil
 		ic.DisableSSHAuth = &disableSSHAuth
 	}
 
-	if cmd.Flag(sshJWTCacheTTLFlag).Changed {
-		ic.SSHJWTCacheTTL = &sshJWTCacheTTL
+	if cmd.Flag(disableVNCAuthFlag).Changed {
+		ic.DisableVNCAuth = &disableVNCAuth
+	}
+
+	if cmd.Flag(jwtCacheTTLFlag).Changed || cmd.Flag(sshJWTCacheTTLFlag).Changed {
+		ic.SSHJWTCacheTTL = &jwtCacheTTL
 	}
 
 	if cmd.Flag(interfaceNameFlag).Changed {
@@ -582,6 +595,9 @@ func setupLoginRequest(providedSetupKey string, customDNSAddressConverted []byte
 	if cmd.Flag(serverSSHAllowedFlag).Changed {
 		loginRequest.ServerSSHAllowed = &serverSSHAllowed
 	}
+	if cmd.Flag(serverVNCAllowedFlag).Changed {
+		loginRequest.ServerVNCAllowed = &serverVNCAllowed
+	}
 
 	if cmd.Flag(enableSSHRootFlag).Changed {
 		loginRequest.EnableSSHRoot = &enableSSHRoot
@@ -603,9 +619,13 @@ func setupLoginRequest(providedSetupKey string, customDNSAddressConverted []byte
 		loginRequest.DisableSSHAuth = &disableSSHAuth
 	}
 
-	if cmd.Flag(sshJWTCacheTTLFlag).Changed {
-		sshJWTCacheTTL32 := int32(sshJWTCacheTTL)
-		loginRequest.SshJWTCacheTTL = &sshJWTCacheTTL32
+	if cmd.Flag(disableVNCAuthFlag).Changed {
+		loginRequest.DisableVNCAuth = &disableVNCAuth
+	}
+
+	if cmd.Flag(jwtCacheTTLFlag).Changed || cmd.Flag(sshJWTCacheTTLFlag).Changed {
+		jwtCacheTTL32 := int32(jwtCacheTTL)
+		loginRequest.SshJWTCacheTTL = &jwtCacheTTL32
 	}
 
 	if cmd.Flag(disableAutoConnectFlag).Changed {

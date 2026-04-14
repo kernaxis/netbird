@@ -54,6 +54,9 @@ const (
 	// defaultSSHPortString defines the standard SSH port number as a string, commonly used for default SSH connections.
 	defaultSSHPortString = "22"
 	defaultSSHPortNumber = 22
+
+	// vncInternalPort is the internal port the VNC server listens on (behind DNAT from 5900).
+	vncInternalPort = 25900
 )
 
 type supportedFeatures struct {
@@ -304,7 +307,7 @@ func (a *Account) GetPeerNetworkMap(
 
 	peerGroups := a.GetPeerGroups(peerID)
 
-	aclPeers, firewallRules, authorizedUsers, enableSSH := a.GetPeerConnectionResources(ctx, peer, validatedPeersMap, groupIDToUserIDs)
+	aclPeers, firewallRules, authorizedUsers, vncAuthorizedUsers, enableSSH := a.GetPeerConnectionResources(ctx, peer, validatedPeersMap, groupIDToUserIDs)
 	// exclude expired peers
 	var peersToConnect []*nbpeer.Peer
 	var expiredPeers []*nbpeer.Peer
@@ -358,6 +361,7 @@ func (a *Account) GetPeerNetworkMap(
 		FirewallRules:       firewallRules,
 		RoutesFirewallRules: slices.Concat(networkResourcesFirewallRules, routesFirewallRules),
 		AuthorizedUsers:     authorizedUsers,
+		VNCAuthorizedUsers:  vncAuthorizedUsers,
 		EnableSSH:           enableSSH,
 	}
 
@@ -1042,9 +1046,10 @@ func (a *Account) UserGroupsRemoveFromPeers(userID string, groups ...string) map
 // GetPeerConnectionResources for a given peer
 //
 // This function returns the list of peers and firewall rules that are applicable to a given peer.
-func (a *Account) GetPeerConnectionResources(ctx context.Context, peer *nbpeer.Peer, validatedPeersMap map[string]struct{}, groupIDToUserIDs map[string][]string) ([]*nbpeer.Peer, []*FirewallRule, map[string]map[string]struct{}, bool) {
+func (a *Account) GetPeerConnectionResources(ctx context.Context, peer *nbpeer.Peer, validatedPeersMap map[string]struct{}, groupIDToUserIDs map[string][]string) ([]*nbpeer.Peer, []*FirewallRule, map[string]map[string]struct{}, map[string]map[string]struct{}, bool) {
 	generateResources, getAccumulatedResources := a.connResourcesGenerator(ctx, peer)
-	authorizedUsers := make(map[string]map[string]struct{}) // machine user to list of userIDs
+	authorizedUsers := make(map[string]map[string]struct{})
+	vncAuthorizedUsers := make(map[string]map[string]struct{})
 	sshEnabled := false
 
 	for _, policy := range a.Policies {
@@ -1091,36 +1096,9 @@ func (a *Account) GetPeerConnectionResources(ctx context.Context, peer *nbpeer.P
 
 			if peerInDestinations && rule.Protocol == PolicyRuleProtocolNetbirdSSH {
 				sshEnabled = true
-				switch {
-				case len(rule.AuthorizedGroups) > 0:
-					for groupID, localUsers := range rule.AuthorizedGroups {
-						userIDs, ok := groupIDToUserIDs[groupID]
-						if !ok {
-							log.WithContext(ctx).Tracef("no user IDs found for group ID %s", groupID)
-							continue
-						}
-
-						if len(localUsers) == 0 {
-							localUsers = []string{auth.Wildcard}
-						}
-
-						for _, localUser := range localUsers {
-							if authorizedUsers[localUser] == nil {
-								authorizedUsers[localUser] = make(map[string]struct{})
-							}
-							for _, userID := range userIDs {
-								authorizedUsers[localUser][userID] = struct{}{}
-							}
-						}
-					}
-				case rule.AuthorizedUser != "":
-					if authorizedUsers[auth.Wildcard] == nil {
-						authorizedUsers[auth.Wildcard] = make(map[string]struct{})
-					}
-					authorizedUsers[auth.Wildcard][rule.AuthorizedUser] = struct{}{}
-				default:
-					authorizedUsers[auth.Wildcard] = a.getAllowedUserIDs()
-				}
+				a.collectAuthorizedUsers(ctx, rule, groupIDToUserIDs, authorizedUsers)
+			} else if peerInDestinations && rule.Protocol == PolicyRuleProtocolNetbirdVNC {
+				a.collectAuthorizedUsers(ctx, rule, groupIDToUserIDs, vncAuthorizedUsers)
 			} else if peerInDestinations && policyRuleImpliesLegacySSH(rule) && peer.SSHEnabled {
 				sshEnabled = true
 				authorizedUsers[auth.Wildcard] = a.getAllowedUserIDs()
@@ -1129,7 +1107,41 @@ func (a *Account) GetPeerConnectionResources(ctx context.Context, peer *nbpeer.P
 	}
 
 	peers, fwRules := getAccumulatedResources()
-	return peers, fwRules, authorizedUsers, sshEnabled
+	return peers, fwRules, authorizedUsers, vncAuthorizedUsers, sshEnabled
+}
+
+// collectAuthorizedUsers populates the target map with authorized user mappings from the rule.
+func (a *Account) collectAuthorizedUsers(ctx context.Context, rule *PolicyRule, groupIDToUserIDs map[string][]string, target map[string]map[string]struct{}) {
+	switch {
+	case len(rule.AuthorizedGroups) > 0:
+		for groupID, localUsers := range rule.AuthorizedGroups {
+			userIDs, ok := groupIDToUserIDs[groupID]
+			if !ok {
+				log.WithContext(ctx).Tracef("no user IDs found for group ID %s", groupID)
+				continue
+			}
+
+			if len(localUsers) == 0 {
+				localUsers = []string{auth.Wildcard}
+			}
+
+			for _, localUser := range localUsers {
+				if target[localUser] == nil {
+					target[localUser] = make(map[string]struct{})
+				}
+				for _, userID := range userIDs {
+					target[localUser][userID] = struct{}{}
+				}
+			}
+		}
+	case rule.AuthorizedUser != "":
+		if target[auth.Wildcard] == nil {
+			target[auth.Wildcard] = make(map[string]struct{})
+		}
+		target[auth.Wildcard][rule.AuthorizedUser] = struct{}{}
+	default:
+		target[auth.Wildcard] = a.getAllowedUserIDs()
+	}
 }
 
 func (a *Account) getAllowedUserIDs() map[string]struct{} {
@@ -1165,7 +1177,7 @@ func (a *Account) connResourcesGenerator(ctx context.Context, targetPeer *nbpeer
 				}
 
 				protocol := rule.Protocol
-				if protocol == PolicyRuleProtocolNetbirdSSH {
+				if protocol == PolicyRuleProtocolNetbirdSSH || protocol == PolicyRuleProtocolNetbirdVNC {
 					protocol = PolicyRuleProtocolTCP
 				}
 

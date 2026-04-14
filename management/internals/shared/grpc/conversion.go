@@ -94,10 +94,7 @@ func toPeerConfig(peer *nbpeer.Peer, network *types.Network, dnsName string, set
 
 	sshConfig := &proto.SSHConfig{
 		SshEnabled: peer.SSHEnabled || enableSSH,
-	}
-
-	if sshConfig.SshEnabled {
-		sshConfig.JwtConfig = buildJWTConfig(httpConfig, deviceFlowConfig)
+		JwtConfig:  buildJWTConfig(httpConfig, deviceFlowConfig),
 	}
 
 	return &proto.PeerConfig{
@@ -156,13 +153,19 @@ func ToSyncResponse(ctx context.Context, config *nbconfig.Config, httpConfig *nb
 		response.NetworkMap.ForwardingRules = forwardingRules
 	}
 
+	userIDClaim := auth.DefaultUserIDClaim
+	if httpConfig != nil && httpConfig.AuthUserIDClaim != "" {
+		userIDClaim = httpConfig.AuthUserIDClaim
+	}
+
 	if networkMap.AuthorizedUsers != nil {
 		hashedUsers, machineUsers := buildAuthorizedUsersProto(ctx, networkMap.AuthorizedUsers)
-		userIDClaim := auth.DefaultUserIDClaim
-		if httpConfig != nil && httpConfig.AuthUserIDClaim != "" {
-			userIDClaim = httpConfig.AuthUserIDClaim
-		}
 		response.NetworkMap.SshAuth = &proto.SSHAuth{AuthorizedUsers: hashedUsers, MachineUsers: machineUsers, UserIDClaim: userIDClaim}
+	}
+
+	if networkMap.VNCAuthorizedUsers != nil {
+		hashedUsers, machineUsers := buildAuthorizedUsersProto(ctx, networkMap.VNCAuthorizedUsers)
+		response.NetworkMap.VncAuth = &proto.VNCAuth{AuthorizedUsers: hashedUsers, MachineUsers: machineUsers, UserIDClaim: userIDClaim}
 	}
 
 	return response
