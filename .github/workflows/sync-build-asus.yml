@@ -1,0 +1,143 @@
+name: Sync upstream and rebase asus
+
+on:
+  schedule:
+    - cron: "17 4 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  sync-rebase-build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout fork
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Detect upstream repository
+        id: upstream
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          UPSTREAM=$(gh api repos/${{ github.repository }} --jq '.parent.full_name')
+
+          if [ -z "$UPSTREAM" ] || [ "$UPSTREAM" = "null" ]; then
+            echo "Repository is not a fork."
+            exit 1
+          fi
+
+          echo "repo=$UPSTREAM" >> "$GITHUB_OUTPUT"
+          echo "Upstream repository: $UPSTREAM"
+
+      - name: Fetch upstream
+        run: |
+          git remote add upstream \
+            "https://github.com/${{ steps.upstream.outputs.repo }}.git"
+
+          git fetch upstream --tags --prune
+
+      - name: Sync fork main with upstream
+        run: |
+          DEFAULT_BRANCH=$(gh api repos/${{ steps.upstream.outputs.repo }} --jq '.default_branch')
+
+          echo "Upstream default branch: $DEFAULT_BRANCH"
+
+          git checkout "$DEFAULT_BRANCH"
+
+          # Le main du fork devient exactement identique à upstream/main
+          git reset --hard "upstream/$DEFAULT_BRANCH"
+
+          git push origin "$DEFAULT_BRANCH" --force-with-lease
+
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Find latest upstream tag
+        id: tag
+        run: |
+          LATEST_TAG=$(git for-each-ref \
+            --sort=-creatordate \
+            --format='%(refname:short)' \
+            refs/tags | head -n 1)
+
+          if [ -z "$LATEST_TAG" ]; then
+            echo "No upstream tag found."
+            exit 1
+          fi
+
+          VERSION="${LATEST_TAG#v}"
+
+          echo "tag=$LATEST_TAG" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+          echo "Latest tag: $LATEST_TAG"
+          echo "Version: $VERSION"
+
+      - name: Check if release already exists
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="${{ steps.tag.outputs.tag }}"
+
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG already exists."
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Release $TAG does not exist."
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Rebase asus onto latest upstream tag
+        if: steps.release.outputs.exists == 'false'
+        run: |
+          git fetch origin asus
+
+          git checkout -B asus origin/asus
+
+          echo "Rebasing asus onto ${{ steps.tag.outputs.tag }}"
+
+          git rebase "${{ steps.tag.outputs.tag }}"
+
+          git push origin asus --force-with-lease
+
+      - name: Build ASUS
+        if: steps.release.outputs.exists == 'false'
+        run: |
+          make asus
+
+          test -f ./client/netbird
+
+      - name: Create archive
+        if: steps.release.outputs.exists == 'false'
+        id: archive
+        run: |
+          VERSION="${{ steps.tag.outputs.version }}"
+          ARCHIVE="netbird_${VERSION}_linux_armv7.tar.gz"
+
+          tar -czf "$ARCHIVE" -C ./client netbird
+
+          echo "archive=$ARCHIVE" >> "$GITHUB_OUTPUT"
+
+          ls -lh "$ARCHIVE"
+
+      - name: Create GitHub release
+        if: steps.release.outputs.exists == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create \
+            "${{ steps.tag.outputs.tag }}" \
+            "${{ steps.archive.outputs.archive }}" \
+            --target asus \
+            --title "${{ steps.tag.outputs.tag }}" \
+            --notes "ASUS build based on upstream ${{ steps.tag.outputs.tag }}"
