@@ -11,9 +11,9 @@ import (
 )
 
 func readOsReleaseFile() (osName string, osVer string) {
-	file, err := os.Open("/etc/os-release")
+	file, err := os.Open("/opt/etc/os-release")
 	if err != nil {
-		log.Warnf("failed to open file /etc/os-release: %s", err)
+		log.Warnf("failed to open file /opt/etc/os-release: %s", err)
 		return "", ""
 	}
 	defer file.Close()

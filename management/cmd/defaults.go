@@ -1,13 +1,13 @@
 package cmd
 
 const (
-	defaultMgmtDataDir   = "/var/lib/netbird/"
-	defaultMgmtConfigDir = "/etc/netbird"
-	defaultLogDir        = "/var/log/netbird"
+	defaultMgmtDataDir   = "/opt/var/lib/netbird/"
+	defaultMgmtConfigDir = "/opt/etc/netbird"
+	defaultLogDir        = "/opt/var/log/netbird"
 
-	oldDefaultMgmtDataDir   = "/var/lib/wiretrustee/"
-	oldDefaultMgmtConfigDir = "/etc/wiretrustee"
-	oldDefaultLogDir        = "/var/log/wiretrustee"
+	oldDefaultMgmtDataDir   = "/opt/var/lib/wiretrustee/"
+	oldDefaultMgmtConfigDir = "/opt/etc/wiretrustee"
+	oldDefaultLogDir        = "/opt/var/log/wiretrustee"
 
 	defaultMgmtConfig    = defaultMgmtConfigDir + "/management.json"
 	defaultLogFile       = defaultLogDir + "/management.log"

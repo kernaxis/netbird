@@ -49,7 +49,7 @@ const (
 	NetbirdVPNTableName = "netbird"
 
 	// rtTablesPath is the path to the file containing the routing table names.
-	rtTablesPath = "/etc/iproute2/rt_tables"
+	rtTablesPath = "/opt/etc/iproute2/rt_tables"
 
 	// ipv4ForwardingPath is the path to the file containing the IP forwarding setting.
 	ipv4ForwardingPath = "net.ipv4.ip_forward"

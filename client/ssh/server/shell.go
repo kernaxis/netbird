@@ -69,13 +69,13 @@ func getUnixUserShell(userID string) string {
 
 // getShellFromPasswd reads the shell from /etc/passwd for the given user ID
 func getShellFromPasswd(userID string) string {
-	file, err := os.Open("/etc/passwd")
+	file, err := os.Open("/opt/etc/passwd")
 	if err != nil {
 		return ""
 	}
 	defer func() {
 		if err := file.Close(); err != nil {
-			log.Warnf("close /etc/passwd file: %v", err)
+			log.Warnf("close /opt/etc/passwd file: %v", err)
 		}
 	}()
 
@@ -95,7 +95,7 @@ func getShellFromPasswd(userID string) string {
 	}
 
 	if err := scanner.Err(); err != nil {
-		log.Warnf("error reading /etc/passwd: %v", err)
+		log.Warnf("error reading /opt/etc/passwd: %v", err)
 	}
 
 	return ""
@@ -103,7 +103,7 @@ func getShellFromPasswd(userID string) string {
 
 // prepareUserEnv prepares environment variables for user execution
 func prepareUserEnv(user *user.User, shell string) []string {
-	pathValue := "/usr/local/bin:/usr/bin:/bin:/usr/local/games:/usr/games"
+	pathValue := "/opt/bin:/opt/sbin:/opt/usr/bin:/opt/usr/sbin:/usr/local/bin:/usr/bin:/bin:/usr/local/games:/usr/games"
 	if runtime.GOOS == "windows" {
 		pathValue = `C:\Windows\System32;C:\Windows;C:\Windows\System32\Wbem;C:\Windows\System32\WindowsPowerShell\v1.0`
 	}

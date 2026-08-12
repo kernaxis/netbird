@@ -211,7 +211,7 @@ func DefaultConfig() *CombinedConfig {
 			LogLevel:           "info",
 			LogFile:            "console",
 			StunPorts:          []int{3478},
-			DataDir:            "/var/lib/netbird/",
+			DataDir:            "/opt/var/lib/netbird/",
 			Auth: AuthConfig{
 				Storage: AuthStorageConfig{
 					Type: "sqlite3",
@@ -233,7 +233,7 @@ func DefaultConfig() *CombinedConfig {
 			// LogLevel inherited from Server.LogLevel via ApplySimplifiedDefaults
 		},
 		Management: ManagementConfig{
-			DataDir: "/var/lib/netbird/",
+			DataDir: "/opt/var/lib/netbird/",
 			Auth: AuthConfig{
 				Storage: AuthStorageConfig{
 					Type: "sqlite3",
@@ -367,7 +367,7 @@ func (c *CombinedConfig) applyManagementDefaults(exposedHost string) {
 	if c.Management.LogLevel == "" {
 		c.Management.LogLevel = c.Server.LogLevel
 	}
-	if c.Management.DataDir == "" || c.Management.DataDir == "/var/lib/netbird/" {
+	if c.Management.DataDir == "" || c.Management.DataDir == "/opt/var/lib/netbird/" {
 		c.Management.DataDir = c.Server.DataDir
 	}
 	c.Management.DnsDomain = exposedHost

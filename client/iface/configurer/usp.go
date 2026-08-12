@@ -344,7 +344,7 @@ func (t *WGUSPConfigurer) Close() {
 	}
 
 	if runtime.GOOS == "linux" {
-		sockPath := "/var/run/wireguard/" + t.deviceName + ".sock"
+		sockPath := "/opt/var/run/wireguard/" + t.deviceName + ".sock"
 		if _, statErr := os.Stat(sockPath); statErr == nil {
 			_ = os.Remove(sockPath)
 		}

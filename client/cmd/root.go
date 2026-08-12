@@ -118,11 +118,11 @@ func Execute() error {
 // maps, custom DNS resolver address, Rosenpass options, auto-connect
 // disabling, lazy connection).
 func init() {
-	defaultConfigPathDir = "/etc/netbird/"
-	defaultLogFileDir = "/var/log/netbird/"
+	defaultConfigPathDir = "/opt/etc/netbird/"
+	defaultLogFileDir = "/opt/var/log/netbird/"
 
-	oldDefaultConfigPathDir = "/etc/wiretrustee/"
-	oldDefaultLogFileDir = "/var/log/wiretrustee/"
+	oldDefaultConfigPathDir = "/opt/etc/wiretrustee/"
+	oldDefaultLogFileDir = "/opt/var/log/wiretrustee/"
 
 	switch runtime.GOOS {
 	case "windows":
@@ -141,7 +141,7 @@ func init() {
 	oldDefaultConfigPath = oldDefaultConfigPathDir + "config.json"
 	oldDefaultLogFile = oldDefaultLogFileDir + "client.log"
 
-	defaultDaemonAddr := "unix:///var/run/netbird.sock"
+	defaultDaemonAddr := "unix:///opt/var/run/netbird.sock"
 	if runtime.GOOS == "windows" {
 		defaultDaemonAddr = daddr.WindowsPipeAddr
 	}

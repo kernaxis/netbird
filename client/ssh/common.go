@@ -18,7 +18,7 @@ import (
 const (
 	NetBirdSSHConfigFile = "99-netbird.conf"
 
-	UnixSSHConfigDir    = "/etc/ssh/ssh_config.d"
+	UnixSSHConfigDir    = "/opt/etc/ssh/ssh_config.d"
 	WindowsSSHConfigDir = "ssh/ssh_config.d"
 )
 

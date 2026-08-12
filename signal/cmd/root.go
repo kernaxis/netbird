@@ -39,7 +39,7 @@ func Execute() error {
 
 func init() {
 	stopCh = make(chan int)
-	defaultLogFile = "/var/log/netbird/signal.log"
+	defaultLogFile = "/opt/var/log/netbird/signal.log"
 
 	if runtime.GOOS == "windows" {
 		defaultLogFile = os.Getenv("PROGRAMDATA") + "\\Netbird\\" + "signal.log"

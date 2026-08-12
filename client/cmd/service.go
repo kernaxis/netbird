@@ -23,7 +23,7 @@ var serviceCmd = &cobra.Command{
 	Short: "Manage the NetBird daemon service",
 }
 
-const defaultJSONSocket = "unix:///var/run/netbird-http.sock"
+const defaultJSONSocket = "unix:///opt/var/run/netbird-http.sock"
 
 var (
 	serviceName      string

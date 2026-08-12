@@ -26,6 +26,7 @@ setup-hooks:
 	@chmod +x .githooks/pre-push
 	@echo "✅ Git hooks configured! Pre-push will now run 'make lint'"
 
+
 # Host-safe unit tests: excludes the privileged-tagged tests (root / system-mutating).
 # Runs as a normal user with no sudo and leaves host networking untouched.
 test-unit:
@@ -37,3 +38,36 @@ test-unit:
 #   PRIV_RUN=TestNftablesManager PRIV_PKGS=./client/firewall/nftables/... make test-privileged
 test-privileged:
 	@go test -tags 'devcert privileged' -timeout 30m -run TestRunPrivilegedSuiteInDocker -v ./client/testutil/privileged/...
+
+
+BINARY=netbird
+GOOS=linux
+GOARCH=arm
+GOARM=7
+
+XIMPORTPATH=github.com/netbirdio/netbird
+
+PKG_VERSION=$(shell git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//' | sed 's/-asus//' || echo dev)
+PKG_SOURCE_DATE=$(shell date +%Y-%m-%d)
+COMMIT_SHORT=$(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)
+
+LDFLAGS=\
+	-X '$(XIMPORTPATH)/version.version=$(PKG_VERSION)' \
+	-X 'main.commit=$(COMMIT_SHORT)' \
+	-X 'main.date=$(PKG_SOURCE_DATE)' \
+	-X 'main.builtBy=AsusWizard' \
+	-s -w
+
+# ---------- BUILD ----------
+build:
+	@echo "👉 Build"
+	GOOS=$(GOOS) GOARCH=$(GOARCH) GOARM=$(GOARM) \
+	go build -ldflags "$(LDFLAGS)" -o client/$(BINARY) ./client
+
+# ---------- FULL PIPELINE ----------
+asus:
+	@echo "👉 Build asus target "
+	GOOS=$(GOOS) GOARCH=$(GOARCH) GOARM=$(GOARM) \
+	go build -ldflags "$(LDFLAGS)" -o client/$(BINARY) ./client
+	@echo "🎉 ASUS pipeline terminé"
+
