@@ -1,4 +1,4 @@
-name: Sync upstream and rebase asus
+name: Sync upstream and build ASUS
 
 on:
   schedule:
@@ -45,22 +45,6 @@ jobs:
 
           git fetch upstream --tags --prune
 
-      - name: Sync fork main with upstream
-        run: |
-          DEFAULT_BRANCH=$(gh api repos/${{ steps.upstream.outputs.repo }} --jq '.default_branch')
-
-          echo "Upstream default branch: $DEFAULT_BRANCH"
-
-          git checkout "$DEFAULT_BRANCH"
-
-          # Le main du fork devient exactement identique à upstream/main
-          git reset --hard "upstream/$DEFAULT_BRANCH"
-
-          git push origin "$DEFAULT_BRANCH" --force-with-lease
-
-        env:
-          GH_TOKEN: ${{ github.token }}
-
       - name: Find latest upstream tag
         id: tag
         run: |
@@ -97,18 +81,18 @@ jobs:
             echo "exists=false" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Rebase asus onto latest upstream tag
+      - name: Rebase main onto latest upstream tag
         if: steps.release.outputs.exists == 'false'
         run: |
-          git fetch origin asus
+          git fetch origin main
 
-          git checkout -B asus origin/asus
+          git checkout -B main origin/main
 
-          echo "Rebasing asus onto ${{ steps.tag.outputs.tag }}"
+          echo "Rebasing main onto ${{ steps.tag.outputs.tag }}"
 
           git rebase "${{ steps.tag.outputs.tag }}"
 
-          git push origin asus --force-with-lease
+          git push origin main --force-with-lease
 
       - name: Build ASUS
         if: steps.release.outputs.exists == 'false'
@@ -138,6 +122,6 @@ jobs:
           gh release create \
             "${{ steps.tag.outputs.tag }}" \
             "${{ steps.archive.outputs.archive }}" \
-            --target asus \
+            --target main \
             --title "${{ steps.tag.outputs.tag }}" \
             --notes "ASUS build based on upstream ${{ steps.tag.outputs.tag }}"
